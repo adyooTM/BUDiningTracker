@@ -7,7 +7,7 @@ class LoginPage extends StatelessWidget {
   @override 
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.red,
+      backgroundColor: const Color.fromARGB(255, 188, 23, 23),
       body: Padding(
         padding: const EdgeInsets.all(30.0),
         child: Column(
@@ -22,7 +22,7 @@ class LoginPage extends StatelessWidget {
             TextField(
               decoration: InputDecoration(
                 filled: true,
-                fillColor: Colors.white,
+                fillColor: const Color.fromARGB(255, 255, 255, 255),
                 hintText: "Email",
                 border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
               ),
