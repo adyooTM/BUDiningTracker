@@ -2,8 +2,8 @@ name: Daily Scraper
 
 on:
   schedule:
-    - cron: '0 7 * * *'  # runs every day at 7am UTC
-  workflow_dispatch:  # lets you trigger it manually too
+    - cron: '0 7 * * *'  # every day at 9am UTC
+  workflow_dispatch:
 
 jobs:
   scrape:
@@ -20,7 +20,4 @@ jobs:
         run: pip install -r requirements.txt
 
       - name: Run scraper
-        env:
-          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
         run: python scraper.py
