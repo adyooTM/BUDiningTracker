@@ -6,6 +6,7 @@ from selenium.webdriver.support import expected_conditions as EC
 from webdriver_manager.chrome import ChromeDriverManager
 from bs4 import BeautifulSoup
 from datetime import date
+from datetime import datetime
 from supabase import create_client
 import re
 import time
@@ -64,11 +65,20 @@ def scrape_hall(driver, slug):
     soup = BeautifulSoup(driver.page_source, "html.parser")
     today = date.today().isoformat()
     items = []
-    current_meal = "lunch"
 
-    # Find all meal sections by looking for meal headers
-    meal_headers = soup.find_all(["h2", "h3", "h4", "h5"])
+    # Lock onto ONLY today's list container so future dates are invisible
+    today_ol_container = soup.find("ol", class_="js-menu-bydate menu-area background-opaque menubydate-active")
     
+    if not today_ol_container:
+        print(f"  ⚠ Could not find today's active menu container for {slug}!")
+        return []
+
+    # Search for headers ONLY inside today's container, not 'soup'
+    meal_headers = today_ol_container.find_all(["h2", "h3", "h4", "h5"])
+
+    current_meal = None
+
+    # Everything below this line is YOUR exact original working code
     for header in meal_headers:
         header_text = header.get_text(strip=True)
         if any(m in header_text.lower() for m in ["breakfast", "lunch", "dinner", "brunch"]):
