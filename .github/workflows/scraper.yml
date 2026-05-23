@@ -2,7 +2,7 @@ name: Daily Scraper
 
 on:
   schedule:
-    - cron: '41 02 * * *'  # every day at 7am UTC
+    - cron: '50 02 * * *'  # every day at 7am UTC
   workflow_dispatch:
 
 jobs:
