@@ -23,12 +23,12 @@ class _MenuPageState extends State<MenuPage>
   bool _isLoading = true;
   String? _error;
 
-  final List<String> _mealTypes = ['breakfast', 'lunch', 'dinner'];
+  final List<String> _mealTypes = ['breakfast', 'lunch', 'brunch', 'dinner'];
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 3, vsync: this);
+    _tabController = TabController(length: 4, vsync: this);
     _fetchMenu();
   }
 
@@ -88,6 +88,7 @@ class _MenuPageState extends State<MenuPage>
           tabs: const [
             Tab(text: 'Breakfast'),
             Tab(text: 'Lunch'),
+            Tab(text: 'Brunch'),
             Tab(text: 'Dinner'),
           ],
         ),

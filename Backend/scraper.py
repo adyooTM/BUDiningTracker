@@ -6,9 +6,11 @@ from selenium.webdriver.support import expected_conditions as EC
 from webdriver_manager.chrome import ChromeDriverManager
 from bs4 import BeautifulSoup
 from datetime import date
+from datetime import datetime
 from supabase import create_client
 import re
 import time
+
 
 SUPABASE_URL = "https://cwficgymseewxmadzwfu.supabase.co"
 SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN3ZmljZ3ltc2Vld3htYWR6d2Z1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ5MTg3MTEsImV4cCI6MjA5MDQ5NDcxMX0.fNoyk5-BH_A-jyb1hTbKXCLDF80whdj9k_vddqhnYTE"
@@ -19,7 +21,7 @@ DINING_HALLS = {
     "marciano": 1,
     "warren": 2,
     "west": 3,
-    "fenway": 4,
+    "granby": 4, 
 }
 
 def get_driver():
@@ -65,11 +67,20 @@ def scrape_hall(driver, slug):
     soup = BeautifulSoup(driver.page_source, "html.parser")
     today = date.today().isoformat()
     items = []
-    current_meal = "lunch"
 
-    # Find all meal sections by looking for meal headers
-    meal_headers = soup.find_all(["h2", "h3", "h4", "h5"])
+    # Lock onto ONLY today's list container so future dates are invisible
+    today_ol_container = soup.find("ol", class_="js-menu-bydate menu-area background-opaque menubydate-active")
     
+    if not today_ol_container:
+        print(f"  ⚠ Could not find today's active menu container for {slug}!")
+        return []
+
+    # Search for headers ONLY inside today's container, not 'soup'
+    meal_headers = today_ol_container.find_all(["h2", "h3", "h4", "h5"])
+
+    current_meal = None
+
+    # Everything below this line is YOUR exact original working code
     for header in meal_headers:
         header_text = header.get_text(strip=True)
         if any(m in header_text.lower() for m in ["breakfast", "lunch", "dinner", "brunch"]):
