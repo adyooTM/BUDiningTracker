@@ -19,6 +19,7 @@ DINING_HALLS = {
     "marciano": 1,
     "warren": 2,
     "west": 3,
+    "fenway": 4,
 }
 
 def get_driver():
