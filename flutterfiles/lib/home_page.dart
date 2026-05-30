@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'login_page.dart';
 import 'menu_page.dart';
+import 'profile_page.dart';
+import 'cart_page.dart';
 
 class HomePage extends StatelessWidget {
   const HomePage({super.key});
@@ -49,10 +51,19 @@ class HomePage extends StatelessWidget {
           '🍽️ BU Dining',
           style: TextStyle(fontWeight: FontWeight.bold, fontSize: 22),
         ),
-        backgroundColor: const Color(0xFFCC0000),
+        backgroundColor: const Color(0xFF1A1A1A),
         foregroundColor: Colors.white,
         elevation: 0,
         actions: [
+          IconButton(
+            icon: const Icon(Icons.shopping_cart_outlined),
+            tooltip: 'My Cart',
+            onPressed: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => const CartPage()),
+              );
+            },
+          ),
           IconButton(
             icon: const Icon(Icons.logout),
             onPressed: () async {
@@ -68,27 +79,75 @@ class HomePage extends StatelessWidget {
       ),
       body: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.symmetric(horizontal: 16),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const SizedBox(height: 8),
-              Text(
-                'Hey, $username! 👋',
-                style: const TextStyle(
-                  fontSize: 26,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white,
+
+              // Profile banner
+              GestureDetector(
+                onTap: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                        builder: (_) => const ProfilePage()),
+                  );
+                },
+                child: Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF2A2A2A),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: Colors.white10),
+                  ),
+                  child: Row(
+                    children: [
+                      // Avatar
+                      Container(
+                        width: 48,
+                        height: 48,
+                        decoration: const BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: Color(0xFFCC0000),
+                        ),
+                        child: Center(
+                          child: Text(
+                            username.length >= 2
+                                ? username.substring(0, 2).toUpperCase()
+                                : username.toUpperCase(),
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 14),
+                      const Text(
+                        'Track your progress',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const Spacer(),
+                      const Icon(Icons.arrow_forward_ios,
+                          color: Colors.white38, size: 14),
+                    ],
+                  ),
                 ),
               ),
-              const SizedBox(height: 4),
+
+              const SizedBox(height: 20),
               const Text(
                 'Where are you eating today?',
                 style: TextStyle(fontSize: 15, color: Colors.white60),
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: 12),
 
-              // Responsive 2x2 grid that always fills screen
+              // Responsive 2x2 grid
               Expanded(
                 child: LayoutBuilder(
                   builder: (context, constraints) {
@@ -230,12 +289,12 @@ class _DiningHallCardState extends State<_DiningHallCard>
                 ),
               ),
 
-              // Red tint overlay
+              // Red tint
               Container(
                 color: widget.color.withOpacity(0.25),
               ),
 
-              // Text content
+              // Text
               Positioned(
                 bottom: 12,
                 left: 12,
@@ -273,7 +332,7 @@ class _DiningHallCardState extends State<_DiningHallCard>
                 ),
               ),
 
-              // Top right arrow
+              // Arrow
               const Positioned(
                 top: 10,
                 right: 10,
