@@ -203,6 +203,26 @@ class _MenuItemCard extends StatelessWidget {
                     ),
                   ),
                 ),
+              const SizedBox(width: 8),
+              GestureDetector(
+                onTap: () {
+                  print('Added: ${item['name']}');
+                },
+                child: Container(
+                  width: 32,
+                  height: 32,
+                  decoration: const BoxDecoration(
+                    color: Color(0xFFCC0000),
+                    shape: BoxShape.circle,
+
+                  ),
+                  child: const Icon(
+                    Icons.add,
+                    color: Colors.white,
+                    size: 18,
+                  ),
+                ),
+              ),
             ],
           ),
 
