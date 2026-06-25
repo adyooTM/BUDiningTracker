@@ -55,15 +55,7 @@ class HomePage extends StatelessWidget {
         foregroundColor: Colors.white,
         elevation: 0,
         actions: [
-          IconButton(
-            icon: const Icon(Icons.shopping_cart_outlined),
-            tooltip: 'My Cart',
-            onPressed: () {
-              Navigator.of(context).push(
-                MaterialPageRoute(builder: (_) => const CartPage()),
-              );
-            },
-          ),
+          const CartIconButton(),
           IconButton(
             icon: const Icon(Icons.logout),
             onPressed: () async {

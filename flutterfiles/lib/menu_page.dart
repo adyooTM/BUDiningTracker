@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'cart_store.dart';
+import 'cart_page.dart';
 
 class MenuPage extends StatefulWidget {
   final int diningHallId;
@@ -80,6 +82,7 @@ class _MenuPageState extends State<MenuPage>
         backgroundColor: const Color(0xFFCC0000),
         foregroundColor: Colors.white,
         elevation: 0,
+        actions: const [CartIconButton()],
         bottom: TabBar(
           controller: _tabController,
           indicatorColor: Colors.white,
@@ -206,7 +209,17 @@ class _MenuItemCard extends StatelessWidget {
               const SizedBox(width: 8),
               GestureDetector(
                 onTap: () {
-                  print('Added: ${item['name']}');
+                  CartStore.instance.add(item);
+                  ScaffoldMessenger.of(context)
+                    ..hideCurrentSnackBar()
+                    ..showSnackBar(
+                      SnackBar(
+                        content: Text('Added ${item['name']} to cart'),
+                        duration: const Duration(milliseconds: 900),
+                        behavior: SnackBarBehavior.floating,
+                        backgroundColor: const Color(0xFFCC0000),
+                      ),
+                    );
                 },
                 child: Container(
                   width: 32,

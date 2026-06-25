@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'onboarding_sex.dart';
+import 'progress_store.dart';
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
@@ -11,7 +12,9 @@ class ProfilePage extends StatefulWidget {
 
 class _ProfilePageState extends State<ProfilePage> {
   Map<String, dynamic>? _profile;
-  int _caloriesConsumed = 0;
+  int _proteinConsumed = 0;
+  int _carbsConsumed = 0;
+  int _fatConsumed = 0;
   bool _isLoading = true;
 
   @override
@@ -34,18 +37,33 @@ class _ProfilePageState extends State<ProfilePage> {
 
     final logs = await Supabase.instance.client
         .from('meal_logs')
-        .select('menu_items(calories)')
+        .select('menu_items(calories, protein_g, carbs_g, sat_fat_g)')
         .eq('user_id', userId)
         .eq('date', today);
 
     int totalCals = 0;
+    double totalProtein = 0, totalCarbs = 0, totalFat = 0;
     for (final log in logs) {
-      totalCals += (log['menu_items']?['calories'] ?? 0) as int;
+      final mi = log['menu_items'];
+      if (mi == null) continue;
+      totalCals += ((mi['calories'] ?? 0) as num).round();
+      totalProtein += (mi['protein_g'] ?? 0) as num;
+      totalCarbs += (mi['carbs_g'] ?? 0) as num;
+      totalFat += (mi['sat_fat_g'] ?? 0) as num;
     }
+
+    // Feed the shared calorie store so the bar stays in sync with checkout's
+    // optimistic updates instead of keeping a separate local copy.
+    ProgressStore.instance.setTotals(
+      consumed: totalCals,
+      goal: (profile?['daily_calorie_goal'] ?? 2000) as int,
+    );
 
     setState(() {
       _profile = profile;
-      _caloriesConsumed = totalCals;
+      _proteinConsumed = totalProtein.round();
+      _carbsConsumed = totalCarbs.round();
+      _fatConsumed = totalFat.round();
       _isLoading = false;
     });
   }
@@ -58,13 +76,9 @@ class _ProfilePageState extends State<ProfilePage> {
         ? username.substring(0, 2).toUpperCase()
         : username.toUpperCase();
 
-    final calorieGoal = _profile?['daily_calorie_goal'] ?? 2000;
     final proteinGoal = _profile?['daily_protein_goal'] ?? 150;
     final carbsGoal = _profile?['daily_carbs_goal'] ?? 250;
     final fatGoal = _profile?['daily_fat_goal'] ?? 65;
-    final caloriesLeft =
-        (calorieGoal - _caloriesConsumed).clamp(0, calorieGoal);
-    final progress = (_caloriesConsumed / calorieGoal).clamp(0.0, 1.0);
 
     return Scaffold(
       backgroundColor: const Color(0xFF1A1A1A),
@@ -130,80 +144,110 @@ class _ProfilePageState extends State<ProfilePage> {
                   ),
                   const SizedBox(height: 32),
 
-                  // Calories card
-                  Container(
-                    padding: const EdgeInsets.all(20),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF2A2A2A),
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          "Today's Progress",
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                          ),
+                  // Calories card — driven by the shared ProgressStore so a
+                  // checkout updates these numbers live.
+                  AnimatedBuilder(
+                    animation: ProgressStore.instance,
+                    builder: (context, _) {
+                      final store = ProgressStore.instance;
+                      final calorieGoal = store.calorieGoal;
+                      final caloriesConsumed = store.caloriesConsumed;
+                      final caloriesLeft =
+                          store.caloriesLeft.clamp(0, calorieGoal);
+                      final progress = store.progress;
+
+                      return Container(
+                        padding: const EdgeInsets.all(20),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF2A2A2A),
+                          borderRadius: BorderRadius.circular(20),
                         ),
-                        const SizedBox(height: 20),
-                        Row(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Text('🔥',
-                                style: TextStyle(fontSize: 32)),
-                            const SizedBox(width: 12),
-                            Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
+                            const Text(
+                              "Today's Progress",
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            const SizedBox(height: 20),
+                            Row(
                               children: [
-                                Text(
-                                  '$caloriesLeft',
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 36,
-                                    fontWeight: FontWeight.bold,
-                                  ),
+                                const Text('🔥',
+                                    style: TextStyle(fontSize: 32)),
+                                const SizedBox(width: 12),
+                                Column(
+                                  crossAxisAlignment:
+                                      CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      '$caloriesLeft',
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 36,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                    const Text('Calories left',
+                                        style: TextStyle(
+                                            color: Colors.white54,
+                                            fontSize: 13)),
+                                  ],
                                 ),
-                                const Text('Calories left',
-                                    style: TextStyle(
-                                        color: Colors.white54,
-                                        fontSize: 13)),
+                                const Spacer(),
+                                Column(
+                                  crossAxisAlignment:
+                                      CrossAxisAlignment.end,
+                                  children: [
+                                    RichText(
+                                      text: TextSpan(
+                                        children: [
+                                          TextSpan(
+                                            text: '$caloriesConsumed',
+                                            style: const TextStyle(
+                                              color: Colors.white,
+                                              fontSize: 24,
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          ),
+                                          TextSpan(
+                                            text: ' / $calorieGoal',
+                                            style: const TextStyle(
+                                              color: Colors.white60,
+                                              fontSize: 16,
+                                              fontWeight: FontWeight.w600,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    const Text('consumed / goal',
+                                        style: TextStyle(
+                                            color: Colors.white54,
+                                            fontSize: 12)),
+                                  ],
+                                ),
                               ],
                             ),
-                            const Spacer(),
-                            Column(
-                              crossAxisAlignment: CrossAxisAlignment.end,
-                              children: [
-                                Text(
-                                  '$_caloriesConsumed / $calorieGoal',
-                                  style: const TextStyle(
-                                      color: Colors.white70, fontSize: 13),
+                            const SizedBox(height: 16),
+                            ClipRRect(
+                              borderRadius: BorderRadius.circular(8),
+                              child: LinearProgressIndicator(
+                                value: progress,
+                                backgroundColor: Colors.white12,
+                                valueColor: AlwaysStoppedAnimation(
+                                  calorieProgressColor(progress),
                                 ),
-                                const Text('consumed / goal',
-                                    style: TextStyle(
-                                        color: Colors.white38,
-                                        fontSize: 11)),
-                              ],
+                                minHeight: 10,
+                              ),
                             ),
                           ],
                         ),
-                        const SizedBox(height: 16),
-                        ClipRRect(
-                          borderRadius: BorderRadius.circular(8),
-                          child: LinearProgressIndicator(
-                            value: progress,
-                            backgroundColor: Colors.white12,
-                            valueColor: AlwaysStoppedAnimation(
-                              progress > 0.9
-                                  ? Colors.orange
-                                  : const Color(0xFFCC0000),
-                            ),
-                            minHeight: 10,
-                          ),
-                        ),
-                      ],
-                    ),
+                      );
+                    },
                   ),
                   const SizedBox(height: 16),
 
@@ -214,6 +258,7 @@ class _ProfilePageState extends State<ProfilePage> {
                         child: _MacroCard(
                           emoji: '🥩',
                           label: 'Protein',
+                          consumed: _proteinConsumed,
                           goal: proteinGoal,
                           unit: 'g',
                           color: Colors.blue,
@@ -224,6 +269,7 @@ class _ProfilePageState extends State<ProfilePage> {
                         child: _MacroCard(
                           emoji: '🌾',
                           label: 'Carbs',
+                          consumed: _carbsConsumed,
                           goal: carbsGoal,
                           unit: 'g',
                           color: Colors.orange,
@@ -234,6 +280,7 @@ class _ProfilePageState extends State<ProfilePage> {
                         child: _MacroCard(
                           emoji: '🫙',
                           label: 'Fats',
+                          consumed: _fatConsumed,
                           goal: fatGoal,
                           unit: 'g',
                           color: Colors.yellow,
@@ -305,6 +352,7 @@ class _ProfilePageState extends State<ProfilePage> {
 class _MacroCard extends StatelessWidget {
   final String emoji;
   final String label;
+  final int consumed;
   final int goal;
   final String unit;
   final Color color;
@@ -312,6 +360,7 @@ class _MacroCard extends StatelessWidget {
   const _MacroCard({
     required this.emoji,
     required this.label,
+    required this.consumed,
     required this.goal,
     required this.unit,
     required this.color,
@@ -319,8 +368,11 @@ class _MacroCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final progress =
+        goal == 0 ? 0.0 : (consumed / goal).clamp(0.0, 1.0).toDouble();
+
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: const Color(0xFF2A2A2A),
         borderRadius: BorderRadius.circular(16),
@@ -328,21 +380,31 @@ class _MacroCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(emoji, style: const TextStyle(fontSize: 22)),
+          Text(emoji, style: const TextStyle(fontSize: 20)),
           const SizedBox(height: 8),
           Text(
-            '$goal$unit',
+            '$consumed$unit',
             style: TextStyle(
               color: color,
               fontSize: 20,
               fontWeight: FontWeight.bold,
             ),
           ),
+          Text('of $goal$unit',
+              style: const TextStyle(color: Colors.white38, fontSize: 11)),
+          const SizedBox(height: 10),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(6),
+            child: LinearProgressIndicator(
+              value: progress,
+              backgroundColor: Colors.white12,
+              valueColor: AlwaysStoppedAnimation(color),
+              minHeight: 6,
+            ),
+          ),
+          const SizedBox(height: 10),
           Text(label,
               style: const TextStyle(color: Colors.white54, fontSize: 12)),
-          const SizedBox(height: 4),
-          const Text('daily goal',
-              style: TextStyle(color: Colors.white38, fontSize: 10)),
         ],
       ),
     );
