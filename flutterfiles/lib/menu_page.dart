@@ -141,6 +141,9 @@ class _MealList extends StatelessWidget {
       padding: const EdgeInsets.all(16),
       itemCount: items.length,
       itemBuilder: (context, index) {
+        if (mealType == 'breakfast' && index == 0) {
+          return const _OmeletStation();
+        }
         final item = items[index];
         return _MenuItemCard(item: item);
       },
@@ -177,7 +180,7 @@ class _MenuItemCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Name + dietary tags row
+          // Name + calories + button row
           Row(
             children: [
               Expanded(
@@ -207,7 +210,7 @@ class _MenuItemCard extends StatelessWidget {
                   ),
                 ),
               const SizedBox(width: 8),
-              GestureDetector(
+              InkWell(
                 onTap: () {
                   CartStore.instance.add(item);
                   ScaffoldMessenger.of(context)
@@ -221,13 +224,13 @@ class _MenuItemCard extends StatelessWidget {
                       ),
                     );
                 },
+                borderRadius: BorderRadius.circular(16),
                 child: Container(
                   width: 32,
                   height: 32,
                   decoration: const BoxDecoration(
                     color: Color(0xFFCC0000),
                     shape: BoxShape.circle,
-
                   ),
                   child: const Icon(
                     Icons.add,
@@ -318,4 +321,224 @@ Widget _NutrientInfo(String label, String value, Color color) {
       ),
     ],
   );
+}
+
+class _OmeletStation extends StatefulWidget {
+  const _OmeletStation();
+
+  @override
+  State<_OmeletStation> createState() => _OmeletStationState();
+}
+
+class _OmeletStationState extends State<_OmeletStation> {
+  bool _isExpanded = false;
+  final List<String> _selected = [];
+  List<Map<String, dynamic>> _ingredients = [];
+  bool _isLoading = true;
+
+  final _supabase = Supabase.instance.client;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchIngredients();
+  }
+
+  Future<void> _fetchIngredients() async {
+    final today = DateTime.now().toIso8601String().split('T')[0];
+    final response = await _supabase
+        .from('omelet_ingredients')
+        .select()
+        .eq('date', today)
+        .eq('dining_hall_id', 1);
+
+    setState(() {
+      _ingredients = List<Map<String, dynamic>>.from(response);
+      _isLoading = false;
+    });
+  }
+
+  int get _totalCalories => _selected.fold(0, (sum, name) {
+    final match = _ingredients.firstWhere(
+      (i) => i['name'] == name,
+      orElse: () => {'calories': 0},
+    );
+    return sum + ((match['calories'] ?? 0) as int);
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          // ── Header / toggle row ──
+          InkWell(
+            borderRadius: BorderRadius.circular(16),
+            onTap: () => setState(() => _isExpanded = !_isExpanded),
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Row(
+                children: [
+                  const Text('🍳', style: TextStyle(fontSize: 24)),
+                  const SizedBox(width: 12),
+                  const Expanded(
+                    child: Text(
+                      'Create Your Own Omelet',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                  if (_selected.isNotEmpty)
+                    Container(
+                      margin: const EdgeInsets.only(right: 8),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 10, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFCC0000).withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Text(
+                        '$_totalCalories cal',
+                        style: const TextStyle(
+                          color: Color(0xFFCC0000),
+                          fontWeight: FontWeight.bold,
+                          fontSize: 13,
+                        ),
+                      ),
+                    ),
+                  Icon(
+                    _isExpanded
+                        ? Icons.keyboard_arrow_up
+                        : Icons.keyboard_arrow_down,
+                    color: Colors.grey,
+                  ),
+                ],
+              ),
+            ),
+          ),
+
+          // ── Dropdown ingredient list ──
+          if (_isExpanded) ...[
+            const Divider(height: 1),
+            if (_isLoading)
+              const Padding(
+                padding: EdgeInsets.all(24),
+                child: CircularProgressIndicator(color: Color(0xFFCC0000)),
+              )
+            else if (_ingredients.isEmpty)
+              const Padding(
+                padding: EdgeInsets.all(16),
+                child: Text(
+                  'No omelet ingredients available today.',
+                  style: TextStyle(color: Colors.grey),
+                ),
+              )
+            else
+              ListView.separated(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                itemCount: _ingredients.length,
+                separatorBuilder: (_, __) => const Divider(height: 1),
+                itemBuilder: (context, index) {
+                  final ingredient = _ingredients[index];
+                  final name = ingredient['name'] as String;
+                  final isAdded = _selected.contains(name);
+
+                  return Padding(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 16, vertical: 12),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // ── Name + button row ──
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                name,
+                                style: const TextStyle(
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ),
+                            InkWell(
+                              onTap: () {
+                                // your action
+                              },
+                              borderRadius: BorderRadius.circular(16),
+                              child: Container(
+                                width: 32,
+                                height: 32,
+                                decoration: BoxDecoration(
+                                  color: isAdded ? Colors.green : const Color(0xFFCC0000),
+                                  shape: BoxShape.circle,
+                                ),
+                                child: Icon(
+                                  isAdded ? Icons.check : Icons.add,
+                                  color: Colors.white,
+                                  size: 18,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        const SizedBox(height: 10),
+                        const Divider(height: 1),
+                        const SizedBox(height: 10),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceAround,
+                          children: [
+                            _NutrientInfo('Protein', '${ingredient['protein_g']}g', Colors.blue),
+                            _NutrientInfo('Carbs', '${ingredient['carbs_g']}g', Colors.orange),
+                            _NutrientInfo('Sat. Fat', '${ingredient['sat_fat_g']}g', Colors.red),
+                          ],
+                        ),  
+                      ],
+                    ),
+                  );
+                },
+              ),
+
+            // ── Selected summary ──
+            if (_selected.isNotEmpty)
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(16),
+                decoration: const BoxDecoration(
+                  color: Color(0xFFF9F9F9),
+                  borderRadius: BorderRadius.only(
+                    bottomLeft: Radius.circular(16),
+                    bottomRight: Radius.circular(16),
+                  ),
+                ),
+                child: Text(
+                  'Your omelet: ${_selected.join(', ')}',
+                  style: const TextStyle(
+                    fontSize: 13,
+                    color: Colors.grey,
+                    fontStyle: FontStyle.italic,
+                  ),
+                ),
+              ),
+          ],
+        ],
+      ),
+    );
+  }
 }

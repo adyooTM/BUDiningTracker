@@ -10,6 +10,7 @@ from datetime import datetime
 from supabase import create_client
 import re
 import time
+import requests
 
 
 SUPABASE_URL = "https://cwficgymseewxmadzwfu.supabase.co"
@@ -100,6 +101,9 @@ def scrape_hall(driver, slug):
                 food_items = sibling.find_all(["li", "div"], recursive=True)
                 for food in food_items:
                     food_text = food.get_text(separator=" ", strip=True)
+
+                    if any(bad in food_text.lower() for bad in ["ingredients:", "create your own", "create your own omelet station", "grill works"]):
+                        continue
                     
                     # Skip very short or very long blocks
                     if len(food_text) < 3 or len(food_text) > 300:
@@ -151,6 +155,90 @@ def scrape_hall(driver, slug):
 
     return unique_items
 
+def scrape_Marci_omelet_ingredients(driver):
+    today = date.today().isoformat()
+
+    driver.get("https://www.bu.edu/dining/location/marciano/")
+
+    WebDriverWait(driver, 15).until(
+        EC.presence_of_element_located((By.CSS_SELECTOR, "section.cyo-nutrition-facts"))
+    )
+
+    cyo_sections = driver.find_elements(By.CSS_SELECTOR, "li.menu-item")
+    omelet_ul = None
+
+    for section in cyo_sections:
+        try:
+            text = section.get_attribute("innerHTML").lower()
+            if "omelet" in text:
+                omelet_ul = section.find_element(By.CLASS_NAME, "nutrition-label-cyo")
+                break
+        except:
+            continue
+
+    if not omelet_ul:
+        print("  ✗ Omelet station not found")
+        return
+
+    ingredient_rows = omelet_ul.find_elements(
+        By.CSS_SELECTOR, "li.nutrition-label-cyo-section"
+    )
+
+    ingredients = []
+
+    for row in ingredient_rows:
+        try:
+            name = row.find_element(
+                By.CSS_SELECTOR, "h3.nutrition-title"
+            ).get_attribute("textContent").replace("Nutrition Facts", "").strip()
+
+            calories_text = row.find_element(
+                By.CLASS_NAME, "nutrition-label-cyo-cals"
+            ).get_attribute("textContent").strip()
+            calories = int(re.search(r"\d+", calories_text).group()) if re.search(r"\d+", calories_text) else 0
+
+            def get_nutrient(label):
+                trs = row.find_elements(
+                    By.CSS_SELECTOR, "tr.nutrition-label-section, tr.nutrition-label-subsection"
+                )
+                for r in trs:
+                    try:
+                        nutrient = r.find_element(
+                            By.CLASS_NAME, "nutrition-label-nutrient"
+                        ).get_attribute("textContent").strip()
+                        if label.lower() in nutrient.lower():
+                            amount = r.find_element(
+                                By.CLASS_NAME, "nutrition-label-amount"
+                            ).get_attribute("textContent").strip()
+                            return int(re.search(r"\d+", amount).group())
+                    except:
+                        continue
+                return 0
+
+            ingredients.append({
+                "dining_hall_id": 1,
+                "date": today,
+                "name": name,
+                "calories": calories,
+                "protein_g": get_nutrient("Protein"),
+                "carbs_g": get_nutrient("Total Carbohydrate"),
+                "sat_fat_g": get_nutrient("Saturated Fat"),
+            })
+
+            print(f"    - scraped: {name} ({calories} cal)")
+
+        except Exception as e:
+            print(f"  ✗ Error scraping ingredient: {e}")
+            continue
+
+    if ingredients:
+        supabase.table("omelet_ingredients").delete().eq("date", today).execute()
+        supabase.table("omelet_ingredients").insert(ingredients).execute()
+        print(f"  ✓ Inserted {len(ingredients)} omelet ingredients for {today}")
+    else:
+        print("  ✗ No omelet ingredients found")
+        return
+
 def main():
     today = date.today().isoformat()
     driver = get_driver()
@@ -172,6 +260,11 @@ def main():
                     print(f"  ⚠ No items found for {slug}")
             except Exception as e:
                 print(f"  ✗ Error scraping {slug}: {e}")
+        print("Scraping omelet ingredients...")
+        try:
+            scrape_Marci_omelet_ingredients(driver)
+        except Exception as e:
+            print(f"  ✗ Error scraping omelet ingredients: {e}")
     finally:
         driver.quit()
 
