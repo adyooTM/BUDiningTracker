@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'cart_store.dart';
 import 'cart_page.dart';
+import 'package:flutter/material.dart';
+
+final themeNotifier = ValueNotifier<ThemeMode>(ThemeMode.dark);
 
 class MenuPage extends StatefulWidget {
   final int diningHallId;
@@ -72,43 +75,64 @@ class _MenuPageState extends State<MenuPage>
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFFF5F5F5),
-      appBar: AppBar(
-        title: Text(
-          widget.diningHallName,
-          style: const TextStyle(fontWeight: FontWeight.bold),
-        ),
-        backgroundColor: const Color(0xFFCC0000),
-        foregroundColor: Colors.white,
-        elevation: 0,
-        actions: const [CartIconButton()],
-        bottom: TabBar(
-          controller: _tabController,
-          indicatorColor: Colors.white,
-          labelColor: Colors.white,
-          unselectedLabelColor: Colors.white60,
-          tabs: const [
-            Tab(text: 'Breakfast'),
-            Tab(text: 'Lunch'),
-            Tab(text: 'Brunch'),
-            Tab(text: 'Dinner'),
-          ],
-        ),
-      ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator(color: Color(0xFFCC0000)))
-          : _error != null
-              ? Center(child: Text(_error!))
-              : TabBarView(
-                  controller: _tabController,
-                  children: _mealTypes
-                      .map((meal) => _MealList(
-                            items: _menuByMeal[meal] ?? [],
-                            mealType: meal,
-                          ))
-                      .toList(),
+    final isDark = themeNotifier.value == ThemeMode.dark;
+    final bgColor = isDark ? const Color(0xFF121212) : const Color(0xFFF5F5F5);
+    return ValueListenableBuilder<ThemeMode>(
+      valueListenable: themeNotifier,
+      builder: (context, mode, _) {
+        final isDark = mode == ThemeMode.dark;
+        final bgColor = isDark ? const Color(0xFF121212) : const Color(0xFFF5F5F5);
+        return Scaffold(
+          backgroundColor: bgColor,
+          appBar: AppBar(
+            title: Text(
+              widget.diningHallName,
+              style: const TextStyle(fontWeight: FontWeight.bold),
+            ),
+            backgroundColor: const Color(0xFFCC0000),
+            foregroundColor: Colors.white,
+            elevation: 0,
+            actions: [
+              IconButton(
+                icon: Icon(
+                  isDark ? Icons.light_mode : Icons.dark_mode,
+                  color: Colors.white,
                 ),
+                onPressed: () {
+                  themeNotifier.value = isDark
+                      ? ThemeMode.light
+                      : ThemeMode.dark;
+                },
+              ),
+            ],
+            bottom: TabBar(
+              controller: _tabController,
+              indicatorColor: Colors.white,
+              labelColor: Colors.white,
+              unselectedLabelColor: Colors.white60,
+              tabs: const [
+                Tab(text: 'Breakfast'),
+                Tab(text: 'Lunch'),
+                Tab(text: 'Brunch'),
+                Tab(text: 'Dinner'),
+              ],
+            ),
+          ),
+          body: _isLoading
+              ? const Center(child: CircularProgressIndicator(color: Color(0xFFCC0000)))
+              : _error != null
+                  ? Center(child: Text(_error!))
+                  : TabBarView(
+                      controller: _tabController,
+                      children: _mealTypes
+                          .map((meal) => _MealList(
+                                items: _menuByMeal[meal] ?? [],
+                                mealType: meal,
+                              ))
+                          .toList(),
+                    ),
+        );
+      }
     );
   }
 }
@@ -158,6 +182,12 @@ class _MenuItemCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = themeNotifier.value == ThemeMode.dark;
+    final cardColor = isDark ? const Color(0xFF1E1E1E) : Colors.white;
+    final textColor = isDark ? Colors.white : Colors.black;
+    final subTextColor = isDark ? Colors.white60 : Colors.grey;
+    final dividerColor = isDark ? Colors.white24 : Colors.grey.shade300;
+
     final calories = item['calories'];
     final protein = item['protein_g'];
     final carbs = item['carbs_g'];
@@ -167,7 +197,7 @@ class _MenuItemCard extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: cardColor,
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
@@ -186,9 +216,10 @@ class _MenuItemCard extends StatelessWidget {
               Expanded(
                 child: Text(
                   item['name'] ?? '',
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w600,
+                    color: textColor,
                   ),
                 ),
               ),
@@ -264,7 +295,7 @@ class _MenuItemCard extends StatelessWidget {
           // Nutrition row
           if (protein != null || carbs != null || fat != null) ...[
             const SizedBox(height: 10),
-            const Divider(height: 1),
+            Divider(height: 1, color: dividerColor),
             const SizedBox(height: 10),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceAround,
